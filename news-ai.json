@@ -1,0 +1,242 @@
+{
+  "name": "AI News - Draft Generator (DB + Notify)",
+  "nodes": [
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            { "mode": "custom", "cronExpression": "0 0,30 7-17 * * 1-5" }
+          ]
+        }
+      },
+      "id": "Cron",
+      "name": "Cron",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [260, 240]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "assetsCsv",
+              "value": "EURUSD,GBPUSD,USDJPY,XAUUSD,BRN,NQ,ES,YM,BTCUSD,ETHUSD,DAX30,FTSE,USDX"
+            }
+          ]
+        }
+      },
+      "id": "SetAssets",
+      "name": "Set Assets",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [460, 240]
+    },
+    {
+      "parameters": {
+        "functionCode": "const assets = $json.assetsCsv.split(',').map(s => s.trim()).filter(Boolean);\nreturn assets.map(a => ({ json: { asset: a } }));"
+      },
+      "id": "ExplodeAssets",
+      "name": "Explode Assets",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [660, 240]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "SplitBatches",
+      "name": "Split In Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [860, 240]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.MARKETDATA_BASE_URL + \"/quotes?asset=\" + $json.asset}}",
+        "options": { "timeout": 30000 },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth"
+      },
+      "id": "FetchQuotes",
+      "name": "Fetch Quotes (placeholder)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1060, 120],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "MarketData Header Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{$env.ECONCAL_BASE_URL + \"/high?windowHours=8&countries=US,GB,EU,DE,FR,IT,CA,JP\"}}",
+        "options": { "timeout": 30000 }
+      },
+      "id": "FetchCalendar",
+      "name": "Fetch Calendar (placeholder)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1060, 240]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.HEADLINES_BASE_URL + \"/headlines?asset=\" + $json.asset}}",
+        "options": { "timeout": 30000 }
+      },
+      "id": "FetchHeadlines",
+      "name": "Fetch Headlines (placeholder)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1060, 360]
+    },
+    {
+      "parameters": {
+        "mode": "mergeByIndex"
+      },
+      "id": "MergeInputs",
+      "name": "Merge (Quotes+Calendar+Headlines)",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [1260, 240]
+    },
+    {
+      "parameters": {
+        "functionCode": "const asset = $item(0).$node[\"Split In Batches\"].json.asset;\nconst quotes = $item(0).$node[\"Fetch Quotes (placeholder)\"].json;\nconst calendar = $item(0).$node[\"Fetch Calendar (placeholder)\"].json;\nconst headlines = $item(0).$node[\"Fetch Headlines (placeholder)\"].json;\n\n// SIMPLE \"shouldWrite\" scoring (tune later)\nconst changePct = Number(quotes?.changePct ?? 0);\nconst hasHighEventSoon = Array.isArray(calendar?.events) && calendar.events.some(e => e.importance === 'HIGH');\nconst hasBigHeadline = Array.isArray(headlines?.items) && headlines.items.length > 0;\n\nlet score = 0;\nif (Math.abs(changePct) >= 0.35) score += 2;\nif (hasHighEventSoon) score += 2;\nif (hasBigHeadline) score += 1;\n\nreturn [{\n  json: {\n    asset,\n    quotes,\n    calendar,\n    headlines,\n    score,\n    shouldWrite: score >= 2\n  }\n}];"
+      },
+      "id": "Score",
+      "name": "Score / Should Write",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [1460, 240]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            { "value1": "={{$json.shouldWrite}}", "value2": true }
+          ]
+        }
+      },
+      "id": "IFShouldWrite",
+      "name": "IF shouldWrite",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1660, 240]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.AI_NEWS_BASE_URL + \"/generate\"}}",
+        "method": "POST",
+        "jsonParameters": true,
+        "options": { "timeout": 60000 },
+        "bodyParametersJson": "={\n  \"asset\": $json.asset,\n  \"quotes\": $json.quotes,\n  \"calendar\": $json.calendar,\n  \"headlines\": $json.headlines,\n  \"rules\": {\n    \"language\": \"en\",\n    \"wordCountTarget\": 150,\n    \"style\": \"simple_english_tom_tragett_like\",\n    \"noLinks\": true\n  }\n}"
+      },
+      "id": "AIGenerate",
+      "name": "AI Generate (placeholder)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1860, 240]
+    },
+    {
+      "parameters": {
+        "functionCode": "const asset = $item(0).$node[\"Score / Should Write\"].json.asset;\nconst quotes = $item(0).$node[\"Score / Should Write\"].json.quotes;\nconst calendar = $item(0).$node[\"Score / Should Write\"].json.calendar;\nconst ai = $json; // expected: { title, body }\n\n// Build a stable-ish dedup key\nconst day = new Date().toISOString().slice(0,10);\nconst priceBucket = Math.round(Number(quotes?.last ?? 0) * 10) / 10;\nconst primaryDriver = (calendar?.events?.[0]?.name || ai?.title || 'market').toString().slice(0,40);\nconst dedup_key = `${asset}|${day}|${priceBucket}|${primaryDriver}`;\n\nreturn [{\n  json: {\n    asset,\n    title: ai.title || `${asset} update`,\n    body: (ai.body || '').replace(/https?:\\/\\/\\S+/g, ''),\n    lang: 'en',\n    status: 'DRAFT',\n    market_snapshot: quotes,\n    event_tags: calendar,\n    dedup_key\n  }\n}];"
+      },
+      "id": "PrepareDB",
+      "name": "Prepare DB Row",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [2060, 240]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ai_news(asset,title,body,lang,status,market_snapshot,event_tags,dedup_key,created_at,updated_at)\nVALUES ({{$json.asset}}, {{$json.title}}, {{$json.body}}, {{$json.lang}}, {{$json.status}}, {{$json.market_snapshot}}, {{$json.event_tags}}, {{$json.dedup_key}}, NOW(), NOW())\nON CONFLICT (dedup_key) DO NOTHING\nRETURNING id;"
+      },
+      "id": "InsertDraft",
+      "name": "Postgres Insert Draft",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [2260, 240],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres AI News"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const inserted = Array.isArray($json) ? $json : ($json?.rows || $json);\nconst id = inserted?.[0]?.id || inserted?.id || null;\nreturn [{ json: { insertedId: id } }];"
+      },
+      "id": "ExtractId",
+      "name": "Extract Inserted ID",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [2460, 240]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            { "value1": "={{$json.insertedId}}", "operation": "notEmpty" }
+          ]
+        }
+      },
+      "id": "IFInserted",
+      "name": "IF inserted",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2660, 240]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.GCHAT_WEBHOOK_URL}}",
+        "method": "POST",
+        "jsonParameters": true,
+        "bodyParametersJson": "={\n  \"text\": `AI draft ready: ${$json.insertedId} (review)\\nAsset: ${$item(0).$node[\"Prepare DB Row\"].json.asset}`\n}"
+      },
+      "id": "NotifyChat",
+      "name": "Notify Google Chat (webhook)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2860, 240]
+    }
+  ],
+  "connections": {
+    "Cron": { "main": [[{ "node": "Set Assets", "type": "main", "index": 0 }]] },
+    "Set Assets": { "main": [[{ "node": "Explode Assets", "type": "main", "index": 0 }]] },
+    "Explode Assets": { "main": [[{ "node": "Split In Batches", "type": "main", "index": 0 }]] },
+    "Split In Batches": {
+      "main": [
+        [
+          { "node": "Fetch Quotes (placeholder)", "type": "main", "index": 0 },
+          { "node": "Fetch Calendar (placeholder)", "type": "main", "index": 0 },
+          { "node": "Fetch Headlines (placeholder)", "type": "main", "index": 0 }
+        ],
+        []
+      ]
+    },
+    "Fetch Quotes (placeholder)": { "main": [[{ "node": "Merge (Quotes+Calendar+Headlines)", "type": "main", "index": 0 }]] },
+    "Fetch Calendar (placeholder)": { "main": [[{ "node": "Merge (Quotes+Calendar+Headlines)", "type": "main", "index": 1 }]] },
+    "Fetch Headlines (placeholder)": { "main": [[{ "node": "Merge (Quotes+Calendar+Headlines)", "type": "main", "index": 2 }]] },
+    "Merge (Quotes+Calendar+Headlines)": { "main": [[{ "node": "Score / Should Write", "type": "main", "index": 0 }]] },
+    "Score / Should Write": { "main": [[{ "node": "IF shouldWrite", "type": "main", "index": 0 }]] },
+    "IF shouldWrite": { "main": [[{ "node": "AI Generate (placeholder)", "type": "main", "index": 0 }], []] },
+    "AI Generate (placeholder)": { "main": [[{ "node": "Prepare DB Row", "type": "main", "index": 0 }]] },
+    "Prepare DB Row": { "main": [[{ "node": "Postgres Insert Draft", "type": "main", "index": 0 }]] },
+    "Postgres Insert Draft": { "main": [[{ "node": "Extract Inserted ID", "type": "main", "index": 0 }]] },
+    "Extract Inserted ID": { "main": [[{ "node": "IF inserted", "type": "main", "index": 0 }]] },
+    "IF inserted": { "main": [[{ "node": "Notify Google Chat (webhook)", "type": "main", "index": 0 }], []] }
+  },
+  "active": false,
+  "settings": {
+    "executionTimeout": 300,
+    "timezone": "Europe/Berlin"
+  },
+  "versionId": "1"
+}
