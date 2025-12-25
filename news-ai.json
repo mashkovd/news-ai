@@ -44,8 +44,7 @@
     },
     {
       "parameters": {
-        "batchSize": 1,
-        "options": {}
+        "batchSize": 1
       },
       "id": "SplitBatches",
       "name": "Split In Batches",
@@ -240,3 +239,4 @@
   },
   "versionId": "1"
 }
+
