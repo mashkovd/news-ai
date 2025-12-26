@@ -1,122 +1,1191 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Asset Value Checker</title>
+    <title>AI News Generator</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f4f4f9;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
+        * {
             margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        .container {
-            background: white;
-            padding: 2rem;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+            min-height: 100vh;
+            color: #ffffff;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(10, 10, 10, 0.95);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 1rem 2rem;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #00d4aa 0%, #00a884 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        .logo-text {
+            background: linear-gradient(90deg, #00d4aa, #00a884);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Main Content */
+        .main-wrapper {
+            display: flex;
+            gap: 1.5rem;
             width: 100%;
-            max-width: 400px;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 6rem 1.5rem 2rem;
+            min-height: 100vh;
         }
-        h1 {
-            text-align: center;
-            color: #333;
+
+        /* Generator Panel */
+        .container {
+            background: rgba(26, 26, 46, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 380px;
+            flex-shrink: 0;
+            backdrop-filter: blur(10px);
+            height: fit-content;
+            position: sticky;
+            top: 6rem;
+        }
+
+        .container h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
             margin-bottom: 1.5rem;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
         }
+
+        .container h1 i {
+            color: #00d4aa;
+        }
+
+        /* News Column */
+        .news-column {
+            flex: 1;
+            background: rgba(26, 26, 46, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+            border-radius: 16px;
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            max-height: calc(100vh - 8rem);
+            overflow: hidden;
+        }
+
+        .news-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .news-header-row h2 {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .news-header-row h2 i {
+            color: #00d4aa;
+        }
+
+        .clear-btn {
+            background: rgba(220, 53, 69, 0.2);
+            color: #ff6b6b;
+            border: 1px solid rgba(220, 53, 69, 0.3);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            width: auto;
+        }
+
+        .clear-btn:hover {
+            background: rgba(220, 53, 69, 0.4);
+            border-color: #ff6b6b;
+        }
+
+        #newsList {
+            overflow-y: auto;
+            flex: 1;
+            padding-right: 0.5rem;
+        }
+
+        #newsList::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #newsList::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+        }
+
+        #newsList::-webkit-scrollbar-thumb {
+            background: rgba(0, 212, 170, 0.5);
+            border-radius: 3px;
+        }
+
+        /* News Items */
+        .news-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            transition: all 0.3s ease;
+        }
+
+        .news-item:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(0, 212, 170, 0.3);
+        }
+
+        .news-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .news-header {
+            font-weight: 500;
+            color: #e0e0e0;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+            transition: color 0.2s;
+        }
+
+        .news-header:hover {
+            color: #00d4aa;
+        }
+
+        .news-header span:first-child {
+            flex: 1;
+            line-height: 1.5;
+        }
+
+        .editable {
+            cursor: text;
+            padding: 0.25rem 0.5rem;
+            margin: -0.25rem -0.5rem;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            outline: none;
+            min-width: 50px;
+        }
+
+        .editable:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .editable:focus {
+            background: rgba(0, 212, 170, 0.1);
+            box-shadow: 0 0 0 2px rgba(0, 212, 170, 0.3);
+        }
+
+        .editable-hint {
+            display: none;
+            font-size: 0.7rem;
+            color: #666;
+            margin-top: 0.25rem;
+        }
+
+        .editable:focus + .editable-hint,
+        .editable:focus ~ .editable-hint {
+            display: block;
+        }
+
+        .save-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            font-size: 0.75rem;
+            color: #00d4aa;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            margin-left: 0.5rem;
+        }
+
+        .save-indicator.show {
+            opacity: 1;
+        }
+
+        .news-header span:last-child {
+            color: #00d4aa;
+            font-size: 1rem;
+            flex-shrink: 0;
+            transition: transform 0.3s ease;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 212, 170, 0.1);
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .news-header span:last-child:hover {
+            background: rgba(0, 212, 170, 0.2);
+        }
+
+        .news-body {
+            display: none;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: #a0a0a0;
+            line-height: 1.7;
+            font-size: 0.9rem;
+        }
+
+        .news-body.open {
+            display: block;
+        }
+
+        .news-actions {
+            margin-top: 1rem;
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .news-actions-left {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            padding: 0.4rem 0.75rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn-edit {
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+            border: 1px solid rgba(255, 193, 7, 0.3);
+        }
+
+        .btn-edit:hover {
+            background: rgba(255, 193, 7, 0.4);
+        }
+
+        .btn-delete {
+            background: rgba(220, 53, 69, 0.2);
+            color: #ff6b6b;
+            border: 1px solid rgba(220, 53, 69, 0.3);
+        }
+
+        .btn-delete:hover {
+            background: rgba(220, 53, 69, 0.4);
+        }
+
+        .btn-publish {
+            background: rgba(0, 212, 170, 0.2);
+            color: #00d4aa;
+            border: 1px solid rgba(0, 212, 170, 0.3);
+        }
+
+        .btn-publish:hover {
+            background: rgba(0, 212, 170, 0.4);
+        }
+
+        .btn-publish.published {
+            background: rgba(108, 117, 125, 0.2);
+            color: #6c757d;
+            border-color: rgba(108, 117, 125, 0.3);
+            cursor: default;
+        }
+
+        .assets-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            background: rgba(0, 212, 170, 0.15);
+            padding: 0.4rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            color: #00d4aa;
+            border: 1px solid rgba(0, 212, 170, 0.3);
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        /* Form Elements */
         .form-group {
-            margin-bottom: 1rem;
+            margin-bottom: 1.25rem;
         }
+
         label {
             display: block;
             margin-bottom: 0.5rem;
-            color: #666;
+            color: #a0a0a0;
+            font-size: 0.85rem;
+            font-weight: 500;
         }
+
         input, select {
             width: 100%;
-            padding: 0.75rem;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            box-sizing: border-box;
+            padding: 0.875rem 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            color: #fff;
             font-size: 1rem;
+            font-family: inherit;
+            transition: all 0.3s ease;
         }
-        button {
+
+        input::placeholder {
+            color: #666;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #00d4aa;
+            background: rgba(0, 212, 170, 0.05);
+            box-shadow: 0 0 0 3px rgba(0, 212, 170, 0.1);
+        }
+
+        select option {
+            background: #1a1a2e;
+            color: #fff;
+        }
+
+        /* Primary Button */
+        .btn-primary {
             width: 100%;
-            padding: 0.75rem;
-            background-color: #007bff;
-            color: white;
+            padding: 1rem;
+            background: linear-gradient(135deg, #00d4aa 0%, #00a884 100%);
+            color: #0a0a0a;
             border: none;
-            border-radius: 4px;
+            border-radius: 10px;
             font-size: 1rem;
+            font-weight: 600;
             cursor: pointer;
-            transition: background-color 0.2s;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
         }
-        button:hover {
-            background-color: #0056b3;
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #00e4ba 0%, #00b894 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 212, 170, 0.3);
         }
+
+        .btn-primary:disabled {
+            background: linear-gradient(135deg, #444 0%, #333 100%);
+            color: #888;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
         #result {
             margin-top: 1.5rem;
-            padding: 1rem;
-            background-color: #e9ecef;
-            border-radius: 4px;
+            padding: 1.25rem;
+            background: linear-gradient(135deg, rgba(0, 212, 170, 0.15) 0%, rgba(0, 168, 132, 0.1) 100%);
+            border: 1px solid rgba(0, 212, 170, 0.3);
+            border-radius: 12px;
             text-align: center;
             display: none;
+            animation: slideUp 0.4s ease-out;
         }
-        .result-value {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #28a745;
-            margin-top: 0.5rem;
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
-        .loader {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        @keyframes checkmark {
+            0% {
+                transform: scale(0) rotate(-45deg);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.2) rotate(0deg);
+            }
+            100% {
+                transform: scale(1) rotate(0deg);
+                opacity: 1;
+            }
+        }
+
+        .success-icon {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #00d4aa 0%, #00a884 100%);
             border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            animation: spin 2s linear infinite;
-            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            animation: checkmark 0.5s ease-out;
+            box-shadow: 0 4px 20px rgba(0, 212, 170, 0.4);
+        }
+
+        .success-icon i {
+            color: #0a0a0a;
+            font-size: 1.5rem;
+        }
+
+        .success-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #00d4aa;
+            margin-bottom: 0.5rem;
+        }
+
+        .success-subtitle {
+            font-size: 0.85rem;
+            color: #888;
+        }
+
+        .error-box {
+            background: linear-gradient(135deg, rgba(255, 107, 107, 0.15) 0%, rgba(220, 53, 69, 0.1) 100%);
+            border-color: rgba(255, 107, 107, 0.3);
+        }
+
+        .error-box .success-icon {
+            background: linear-gradient(135deg, #ff6b6b 0%, #dc3545 100%);
+            box-shadow: 0 4px 20px rgba(255, 107, 107, 0.4);
+        }
+
+        .error-box .success-title {
+            color: #ff6b6b;
+        }
+
+        #result > div:first-child {
             display: none;
         }
+
+        .result-value {
+            display: none;
+        }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border: 1px solid rgba(0, 212, 170, 0.3);
+            border-radius: 20px;
+            padding: 2.5rem;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            transform: scale(0.8) translateY(20px);
+            transition: all 0.3s ease;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-overlay.show .modal-content {
+            transform: scale(1) translateY(0);
+        }
+
+        .modal-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #00d4aa 0%, #00a884 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+            animation: modalPop 0.5s ease-out;
+            box-shadow: 0 8px 30px rgba(0, 212, 170, 0.4);
+        }
+
+        .modal-icon i {
+            color: #0a0a0a;
+            font-size: 2.5rem;
+        }
+
+        .modal-icon.sending i {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes modalPop {
+            0% {
+                transform: scale(0);
+            }
+            50% {
+                transform: scale(1.2);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 0.75rem;
+        }
+
+        .modal-subtitle {
+            font-size: 1rem;
+            color: #a0a0a0;
+            margin-bottom: 0.5rem;
+            line-height: 1.6;
+        }
+
+        .modal-asset {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: rgba(0, 212, 170, 0.15);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            color: #00d4aa;
+            border: 1px solid rgba(0, 212, 170, 0.3);
+            font-weight: 600;
+            margin: 1rem 0;
+        }
+
+        .modal-terminal {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 1rem;
+            margin: 1.5rem 0;
+            text-align: left;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.8rem;
+            color: #00d4aa;
+        }
+
+        .modal-terminal-line {
+            margin-bottom: 0.3rem;
+        }
+
+        .modal-terminal-line::before {
+            content: '>';
+            color: #666;
+            margin-right: 0.5rem;
+        }
+
+        .modal-btn {
+            background: linear-gradient(135deg, #00d4aa 0%, #00a884 100%);
+            color: #0a0a0a;
+            border: none;
+            padding: 0.875rem 2rem;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+        .modal-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 212, 170, 0.3);
+        }
+
+        /* Loader */
+        .loader {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top: 3px solid #00d4aa;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            margin: 1rem auto;
+            display: none;
+        }
+
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: #666;
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: #444;
+        }
+
+        .empty-state p {
+            font-size: 0.95rem;
+        }
+
+        /* Status Badge */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-badge.draft {
+            background: rgba(255, 193, 7, 0.15);
+            color: #ffc107;
+        }
+
+        .status-badge.published {
+            background: rgba(0, 212, 170, 0.15);
+            color: #00d4aa;
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .main-wrapper {
+                flex-direction: column;
+                padding-top: 5rem;
+            }
+
+            .container {
+                max-width: 100%;
+                position: static;
+            }
+
+            .news-column {
+                max-height: none;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Check Asset Value</h1>
-        <div class="form-group">
-            <label for="asset">Asset</label>
-            <input type="text" id="asset" placeholder="e.g. BTC, AAPL" value="BTCUSDT" required>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">
+                    <i class="fas fa-bolt"></i>
+                </div>
+                <span class="logo-text">AI News</span>
+            </div>
         </div>
-        <div class="form-group">
-            <label for="language">Language</label>
-            <select id="language">
-                <option value="en">English</option>
-                <option value="ru">Russian</option>
-                <option value="es">Spanish</option>
-            </select>
+    </header>
+
+    <!-- Publish Modal -->
+    <div class="modal-overlay" id="publishModal">
+        <div class="modal-content">
+            <div class="modal-icon" id="modalIcon">
+                <i class="fas fa-paper-plane"></i>
+            </div>
+            <div class="modal-title" id="modalTitle">Publishing News</div>
+            <div class="modal-subtitle" id="modalSubtitle">Sending to terminal...</div>
+            <div class="modal-asset" id="modalAsset">
+                <i class="fas fa-coins"></i> <span id="modalAssetName">BTCUSDT</span>
+            </div>
+            <div class="modal-terminal" id="modalTerminal">
+                <div class="modal-terminal-line">Connecting to terminal...</div>
+            </div>
+            <button class="modal-btn" id="modalBtn" onclick="closeModal()" style="display: none;">
+                <i class="fas fa-check"></i> Done
+            </button>
         </div>
-        <button onclick="submitForm()" id="submitBtn">Get Value</button>
-        <div class="loader" id="loader"></div>
-        <div id="result">
-            <div>Current Value:</div>
-            <div class="result-value" id="resultValue"></div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-wrapper">
+        <div class="container">
+            <h1><i class="fas fa-magic"></i> Generate News</h1>
+            <div class="form-group">
+                <label for="asset"><i class="fas fa-chart-line"></i> Asset</label>
+                <input type="text" id="asset" placeholder="e.g. BTCUSDT, EURUSD, AAPL" value="BTCUSDT" required>
+            </div>
+            <div class="form-group">
+                <label for="language"><i class="fas fa-globe"></i> Language</label>
+                <select id="language">
+                    <option value="en">🇬🇧 English</option>
+                    <option value="ru">🇷🇺 Russian</option>
+                    <option value="es">🇪🇸 Spanish</option>
+                </select>
+            </div>
+            <button onclick="submitForm()" id="submitBtn" class="btn-primary">
+                <i class="fas fa-sparkles"></i> Generate News
+            </button>
+            <div id="result">
+                <div class="success-icon">
+                    <i class="fas fa-check"></i>
+                </div>
+                <div class="success-title">Success!</div>
+                <div class="success-subtitle">News has been generated and saved</div>
+            </div>
+        </div>
+        <div class="news-column" id="newsColumn">
+            <div class="news-header-row">
+                <h2><i class="fas fa-newspaper"></i> Latest News</h2>
+                <button class="clear-btn" onclick="clearAllNews()">
+                    <i class="fas fa-trash-alt"></i> Clear All
+                </button>
+            </div>
+            <div id="newsList"></div>
         </div>
     </div>
 
     <script>
+        document.addEventListener('DOMContentLoaded', loadNews);
+
+        async function loadNews() {
+            try {
+                const response = await fetch('/news');
+                const newsItems = await response.json();
+                renderNews(newsItems);
+            } catch (error) {
+                console.error('Error loading news:', error);
+            }
+        }
+
+        function renderNews(newsItems) {
+            const newsList = document.getElementById('newsList');
+            newsList.innerHTML = '';
+
+            if (newsItems.length === 0) {
+                newsList.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <p>No news yet. Generate your first news!</p>
+                    </div>`;
+                return;
+            }
+
+            newsItems.forEach(item => {
+                const newsItemDiv = document.createElement('div');
+                newsItemDiv.className = 'news-item';
+                newsItemDiv.dataset.id = item.id;
+
+                const headerDiv = document.createElement('div');
+                headerDiv.className = 'news-header';
+
+                const titleSpan = document.createElement('span');
+                titleSpan.className = item.published ? '' : 'editable-title';
+                titleSpan.contentEditable = 'false';
+                titleSpan.textContent = item.title || 'No Title';
+                titleSpan.dataset.field = 'title';
+                titleSpan.dataset.id = item.id;
+                titleSpan.dataset.published = item.published ? 'true' : 'false';
+                if (!item.published) {
+                    titleSpan.onblur = handleInlineEdit;
+                    titleSpan.onkeydown = handleEditKeydown;
+                }
+
+                const saveIndicator = document.createElement('span');
+                saveIndicator.className = 'save-indicator';
+                saveIndicator.id = `save-indicator-title-${item.id}`;
+                saveIndicator.innerHTML = '<i class="fas fa-check"></i> Saved';
+
+                const arrowSpan = document.createElement('span');
+                arrowSpan.innerHTML = '<i class="fas fa-chevron-down"></i>';
+                arrowSpan.onclick = function(e) {
+                    e.stopPropagation();
+                    toggleNewsBody(headerDiv);
+                };
+
+                // Click on title area to toggle (but not when editing)
+                titleSpan.onclick = function(e) {
+                    if (titleSpan.contentEditable === 'true') {
+                        e.stopPropagation();
+                        return;
+                    }
+                    toggleNewsBody(headerDiv);
+                };
+
+                headerDiv.appendChild(titleSpan);
+                headerDiv.appendChild(saveIndicator);
+                headerDiv.appendChild(arrowSpan);
+
+                const bodyDiv = document.createElement('div');
+                bodyDiv.className = 'news-body';
+
+                // Status badge
+                const statusBadge = document.createElement('span');
+                statusBadge.className = `status-badge ${item.published ? 'published' : 'draft'}`;
+                statusBadge.innerHTML = item.published ?
+                    '<i class="fas fa-check-circle"></i> Published' :
+                    '<i class="fas fa-edit"></i> Draft';
+                bodyDiv.appendChild(statusBadge);
+
+                const descP = document.createElement('p');
+                descP.className = item.published ? '' : 'editable';
+                descP.contentEditable = item.published ? 'false' : 'true';
+                descP.style.marginTop = '0.75rem';
+                descP.textContent = item.description || '';
+                descP.dataset.field = 'description';
+                descP.dataset.id = item.id;
+                if (!item.published) {
+                    descP.onblur = handleInlineEdit;
+                    descP.onkeydown = handleEditKeydown;
+                }
+                bodyDiv.appendChild(descP);
+
+                const descSaveIndicator = document.createElement('span');
+                descSaveIndicator.className = 'save-indicator';
+                descSaveIndicator.id = `save-indicator-description-${item.id}`;
+                descSaveIndicator.innerHTML = '<i class="fas fa-check"></i> Saved';
+                bodyDiv.appendChild(descSaveIndicator);
+
+                let assets = [];
+                try {
+                    assets = JSON.parse(item.assets);
+                } catch(e) {
+                    assets = [];
+                }
+
+                // Actions container with buttons on left, assets on right
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'news-actions';
+
+                const actionsLeft = document.createElement('div');
+                actionsLeft.className = 'news-actions-left';
+
+                const publishBtn = document.createElement('button');
+                publishBtn.className = `action-btn btn-publish ${item.published ? 'published' : ''}`;
+                publishBtn.innerHTML = item.published ?
+                    '<i class="fas fa-check"></i> Published' :
+                    '<i class="fas fa-paper-plane"></i> Publish';
+                publishBtn.onclick = () => publishNews(item.id, item.title, item.assets);
+                if (item.published) publishBtn.disabled = true;
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'action-btn btn-delete';
+                deleteBtn.innerHTML = '<i class="fas fa-trash"></i> Delete';
+                deleteBtn.onclick = () => deleteNews(item.id);
+
+                actionsLeft.appendChild(publishBtn);
+                actionsLeft.appendChild(deleteBtn);
+                actionsDiv.appendChild(actionsLeft);
+
+                // Assets tag - on the right
+                if (assets && Array.isArray(assets) && assets.length > 0) {
+                    const assetsDiv = document.createElement('div');
+                    assetsDiv.className = 'assets-tag';
+                    assetsDiv.innerHTML = '<i class="fas fa-coins"></i> ' + assets.join(', ');
+                    actionsDiv.appendChild(assetsDiv);
+                }
+
+                bodyDiv.appendChild(actionsDiv);
+
+                newsItemDiv.appendChild(headerDiv);
+                newsItemDiv.appendChild(bodyDiv);
+                newsList.appendChild(newsItemDiv);
+            });
+        }
+
+        async function deleteNews(id) {
+            if(!confirm('Are you sure you want to delete this news?')) return;
+            try {
+                await fetch(`/news/${id}`, { method: 'DELETE' });
+                loadNews();
+            } catch (error) {
+                console.error('Error deleting news:', error);
+            }
+        }
+
+        async function clearAllNews() {
+            if(!confirm('Are you sure you want to delete ALL news?')) return;
+            try {
+                await fetch('/news/all', { method: 'DELETE' });
+                loadNews();
+            } catch (error) {
+                console.error('Error clearing news:', error);
+            }
+        }
+
+        async function publishNews(id, title, assets) {
+            const modal = document.getElementById('publishModal');
+            const modalIcon = document.getElementById('modalIcon');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalSubtitle = document.getElementById('modalSubtitle');
+            const modalAssetName = document.getElementById('modalAssetName');
+            const modalTerminal = document.getElementById('modalTerminal');
+            const modalBtn = document.getElementById('modalBtn');
+
+            // Parse assets
+            let assetsList = [];
+            try {
+                assetsList = JSON.parse(assets);
+            } catch(e) {
+                assetsList = [assets];
+            }
+            const assetName = Array.isArray(assetsList) ? assetsList.join(', ') : assets;
+
+            // Reset modal state
+            modalIcon.innerHTML = '<i class="fas fa-spinner"></i>';
+            modalIcon.classList.add('sending');
+            modalTitle.textContent = 'Publishing News';
+            modalSubtitle.textContent = 'Sending to terminal...';
+            modalAssetName.textContent = assetName;
+            modalTerminal.innerHTML = '<div class="modal-terminal-line">Initializing connection...</div>';
+            modalBtn.style.display = 'none';
+
+            // Show modal
+            modal.classList.add('show');
+
+            // Simulate terminal output
+            await delay(500);
+            addTerminalLine(modalTerminal, 'Connecting to news terminal...');
+
+            await delay(700);
+            addTerminalLine(modalTerminal, `Preparing news: "${title.substring(0, 40)}..."`);
+
+            await delay(600);
+            addTerminalLine(modalTerminal, `Asset: ${assetName}`);
+
+            try {
+                await delay(500);
+                addTerminalLine(modalTerminal, 'Sending to publication queue...');
+
+                const response = await fetch(`/news/${id}/publish`, { method: 'POST' });
+
+                await delay(800);
+
+                if (response.ok) {
+                    addTerminalLine(modalTerminal, '✓ News published successfully!');
+
+                    // Update modal to success state
+                    modalIcon.classList.remove('sending');
+                    modalIcon.innerHTML = '<i class="fas fa-check"></i>';
+                    modalTitle.textContent = 'Published!';
+                    modalSubtitle.textContent = 'News has been sent to terminal';
+                    modalBtn.style.display = 'block';
+
+                    // Reload news in background
+                    loadNews();
+                } else {
+                    throw new Error('Publication failed');
+                }
+            } catch (error) {
+                addTerminalLine(modalTerminal, '✗ Error: ' + error.message);
+                modalIcon.classList.remove('sending');
+                modalIcon.innerHTML = '<i class="fas fa-times"></i>';
+                modalIcon.style.background = 'linear-gradient(135deg, #ff6b6b 0%, #dc3545 100%)';
+                modalTitle.textContent = 'Error';
+                modalSubtitle.textContent = 'Failed to publish news';
+                modalBtn.style.display = 'block';
+                console.error('Error publishing news:', error);
+            }
+        }
+
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        function addTerminalLine(terminal, text) {
+            const line = document.createElement('div');
+            line.className = 'modal-terminal-line';
+            line.textContent = text;
+            terminal.appendChild(line);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('publishModal');
+            modal.classList.remove('show');
+            // Reset icon color
+            document.getElementById('modalIcon').style.background = '';
+        }
+
+        // Store original values for comparison
+        const originalValues = {};
+
+        function handleEditKeydown(e) {
+            // Save on Enter (but allow Shift+Enter for new lines in description)
+            if (e.key === 'Enter' && !e.shiftKey && e.target.dataset.field === 'title') {
+                e.preventDefault();
+                e.target.blur();
+            }
+            // Cancel on Escape
+            if (e.key === 'Escape') {
+                const id = e.target.dataset.id;
+                const field = e.target.dataset.field;
+                const key = `${id}-${field}`;
+                if (originalValues[key] !== undefined) {
+                    e.target.textContent = originalValues[key];
+                }
+                e.target.blur();
+            }
+        }
+
+        async function handleInlineEdit(e) {
+            const id = e.target.dataset.id;
+            const field = e.target.dataset.field;
+            const newValue = e.target.textContent.trim();
+            const key = `${id}-${field}`;
+
+            // Store original value on first focus
+            if (originalValues[key] === undefined) {
+                originalValues[key] = newValue;
+                return;
+            }
+
+            // Check if value changed
+            if (originalValues[key] === newValue) {
+                return;
+            }
+
+            // Update the value
+            try {
+                const updateData = {};
+                updateData[field] = newValue;
+
+                const response = await fetch(`/news/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updateData)
+                });
+
+                if (response.ok) {
+                    // Show save indicator
+                    const indicator = document.getElementById(`save-indicator-${field}-${id}`);
+                    if (indicator) {
+                        indicator.classList.add('show');
+                        setTimeout(() => indicator.classList.remove('show'), 2000);
+                    }
+                    // Update stored value
+                    originalValues[key] = newValue;
+                }
+            } catch (error) {
+                console.error('Error saving:', error);
+                // Restore original value on error
+                e.target.textContent = originalValues[key];
+            }
+        }
+
+        // Track focus to store original values
+        document.addEventListener('focusin', (e) => {
+            if (e.target.classList.contains('editable')) {
+                const id = e.target.dataset.id;
+                const field = e.target.dataset.field;
+                const key = `${id}-${field}`;
+                originalValues[key] = e.target.textContent.trim();
+            }
+        });
+
         async function submitForm() {
             const asset = document.getElementById('asset').value;
             const language = document.getElementById('language').value;
             const resultDiv = document.getElementById('result');
-            const resultValue = document.getElementById('resultValue');
-            const loader = document.getElementById('loader');
             const btn = document.getElementById('submitBtn');
 
             if (!asset) {
@@ -126,8 +1195,10 @@
 
             // Reset UI
             resultDiv.style.display = 'none';
-            loader.style.display = 'block';
+            resultDiv.classList.remove('error-box');
             btn.disabled = true;
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
 
             try {
                 const response = await fetch('/get-asset-value', {
@@ -139,31 +1210,68 @@
                 });
                 const data = await response.json();
 
-                loader.style.display = 'none';
                 btn.disabled = false;
-                resultDiv.style.display = 'block';
+                btn.innerHTML = originalHTML;
 
                 if (data.error) {
-                    resultValue.style.color = 'red';
-                    resultValue.textContent = data.error;
-                } else {
-                    resultValue.style.color = '#28a745';
-                    // Assuming the n8n workflow returns a JSON with a 'value' or 'text' field,
-                    // or we just dump the whole JSON if structure is unknown.
-                    // Adjusting to handle potential response structures.
-                    if (typeof data === 'object') {
-                         resultValue.textContent = data.output || data.result || data.value || JSON.stringify(data);
-                    } else {
-                        resultValue.textContent = data;
-                    }
+                    showResult(false, 'Error', data.error);
+                    return;
                 }
+
+                // Reload news to show the newly added one
+                loadNews();
+
+                // Show success message
+                showResult(true, 'Success!', `News for ${asset.toUpperCase()} has been generated`);
+
             } catch (error) {
-                loader.style.display = 'none';
                 btn.disabled = false;
-                resultDiv.style.display = 'block';
-                resultValue.style.color = 'red';
-                resultValue.textContent = "Error connecting to server.";
+                btn.innerHTML = originalHTML;
+                showResult(false, 'Connection Error', 'Unable to connect to server');
                 console.error('Error:', error);
+            }
+        }
+
+        function showResult(isSuccess, title, subtitle) {
+            const resultDiv = document.getElementById('result');
+            const icon = resultDiv.querySelector('.success-icon i');
+            const titleEl = resultDiv.querySelector('.success-title');
+            const subtitleEl = resultDiv.querySelector('.success-subtitle');
+
+            if (isSuccess) {
+                resultDiv.classList.remove('error-box');
+                icon.className = 'fas fa-check';
+            } else {
+                resultDiv.classList.add('error-box');
+                icon.className = 'fas fa-times';
+            }
+
+            titleEl.textContent = title;
+            subtitleEl.textContent = subtitle;
+            resultDiv.style.display = 'block';
+
+            // Re-trigger animation
+            resultDiv.style.animation = 'none';
+            resultDiv.offsetHeight; // Trigger reflow
+            resultDiv.style.animation = 'slideUp 0.4s ease-out';
+        }
+
+        function toggleNewsBody(header) {
+            const body = header.nextElementSibling;
+            const isOpen = body.classList.toggle('open');
+            const arrowIcon = header.querySelector('span:last-child');
+            arrowIcon.innerHTML = isOpen ? '<i class="fas fa-chevron-up"></i>' : '<i class="fas fa-chevron-down"></i>';
+
+            // Enable/disable title editing based on expanded state
+            const titleSpan = header.querySelector('span:first-child');
+            if (titleSpan && titleSpan.dataset.published !== 'true') {
+                if (isOpen) {
+                    titleSpan.classList.add('editable');
+                    titleSpan.contentEditable = 'true';
+                } else {
+                    titleSpan.classList.remove('editable');
+                    titleSpan.contentEditable = 'false';
+                }
             }
         }
     </script>
