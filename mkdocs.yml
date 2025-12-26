@@ -1,0 +1,58 @@
+site_name: AI News Generator
+site_description: AI-generated news about traded assets for Libertex terminal
+site_author: Libertex Hackathon Team
+site_url: https://news-ai.mbank.space
+
+theme:
+  name: material
+  palette:
+    - scheme: slate
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    - scheme: default
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - toc.integrate
+    - search.suggest
+    - content.code.copy
+  icon:
+    logo: material/lightning-bolt
+
+plugins:
+  - search
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - attr_list
+  - md_in_html
+  - tables
+
+nav:
+  - Home: index.md
+  - Presentation: slides/presentation.md
+  - API Documentation: api.md
+  - Technical Details: technical.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/mashkovd/news-ai
+    - icon: fontawesome/brands/telegram
+      link: https://t.me/mashkovd
+

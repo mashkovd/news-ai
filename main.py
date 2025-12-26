@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from contextlib import asynccontextmanager
 import httpx
 from pydantic import BaseModel
 import os
@@ -12,6 +13,14 @@ from sqlalchemy.orm import sessionmaker, Session
 from datetime import datetime
 import json
 from typing import List, Optional
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+import pytz
+import logging
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -53,7 +62,132 @@ def get_db():
     finally:
         db.close()
 
-app = FastAPI()
+# Scheduler setup
+scheduler = AsyncIOScheduler(timezone=pytz.timezone('Europe/Berlin'))  # CET timezone
+
+async def generate_scheduled_news(schedule_id: int, asset: str, language: str):
+    """Background task to generate news for a scheduled item"""
+    logger.info(f"Generating scheduled news for {asset} (schedule_id={schedule_id})")
+
+    db = SessionLocal()
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                N8N_WEBHOOK_URL,
+                json={"asset": asset, "language": language},
+                timeout=30.0
+            )
+
+            response_data = response.json()
+            items_to_process = []
+
+            if isinstance(response_data, list):
+                items_to_process = response_data
+            elif isinstance(response_data, dict):
+                items_to_process = [response_data]
+
+            for item in items_to_process:
+                result_str = item.get("result")
+                if result_str and isinstance(result_str, str):
+                    if result_str.startswith('='):
+                        result_str = result_str[1:]
+                    try:
+                        news_json = json.loads(result_str)
+
+                        new_news = NewsItem(
+                            title=news_json.get("title", "No Title"),
+                            description=news_json.get("description", ""),
+                            assets=json.dumps(news_json.get("assets", [])),
+                            language=news_json.get("language", language),
+                            source="scheduled"
+                        )
+                        db.add(new_news)
+                        logger.info(f"Saved scheduled news: {new_news.title}")
+                    except json.JSONDecodeError:
+                        logger.error(f"Failed to parse JSON for schedule {schedule_id}")
+                        continue
+
+            db.commit()
+    except Exception as e:
+        logger.error(f"Error generating scheduled news: {e}")
+    finally:
+        db.close()
+
+def setup_schedule_jobs():
+    """Load all active schedules from DB and setup scheduler jobs"""
+    db = SessionLocal()
+    try:
+        schedules = db.query(ScheduleItem).filter(ScheduleItem.is_active == True).all()
+
+        for schedule in schedules:
+            add_schedule_jobs(schedule)
+
+        logger.info(f"Loaded {len(schedules)} active schedules")
+    finally:
+        db.close()
+
+def add_schedule_jobs(schedule: ScheduleItem):
+    """Add scheduler jobs for a schedule item"""
+    days = json.loads(schedule.days)
+    times = json.loads(schedule.times)
+
+    # Map day names to cron day of week
+    day_map = {'Mon': 'mon', 'Tue': 'tue', 'Wed': 'wed', 'Thu': 'thu', 'Fri': 'fri', 'Sat': 'sat', 'Sun': 'sun'}
+    cron_days = ','.join([day_map.get(d, d.lower()[:3]) for d in days])
+
+    for time in times:
+        if time == 'now':
+            # For "now" - run immediately once
+            job_id = f"schedule_{schedule.id}_now"
+            scheduler.add_job(
+                generate_scheduled_news,
+                'date',  # Run once
+                run_date=datetime.now(pytz.timezone('Europe/Berlin')),
+                args=[schedule.id, schedule.asset, schedule.language],
+                id=job_id,
+                replace_existing=True
+            )
+            logger.info(f"Added immediate job for schedule {schedule.id}")
+        else:
+            hour, minute = time.split(':')
+            job_id = f"schedule_{schedule.id}_{time}"
+
+            trigger = CronTrigger(
+                day_of_week=cron_days,
+                hour=int(hour),
+                minute=int(minute),
+                timezone=pytz.timezone('Europe/Berlin')
+            )
+
+            scheduler.add_job(
+                generate_scheduled_news,
+                trigger,
+                args=[schedule.id, schedule.asset, schedule.language],
+                id=job_id,
+                replace_existing=True
+            )
+            logger.info(f"Added cron job: {job_id} for {cron_days} at {time}")
+
+def remove_schedule_jobs(schedule_id: int):
+    """Remove all scheduler jobs for a schedule"""
+    jobs = scheduler.get_jobs()
+    for job in jobs:
+        if job.id.startswith(f"schedule_{schedule_id}_"):
+            scheduler.remove_job(job.id)
+            logger.info(f"Removed job: {job.id}")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    setup_schedule_jobs()
+    scheduler.start()
+    logger.info("Scheduler started")
+    yield
+    # Shutdown
+    scheduler.shutdown()
+    logger.info("Scheduler stopped")
+
+app = FastAPI(lifespan=lifespan)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -106,6 +240,13 @@ class ScheduleOut(BaseModel):
 async def read_root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
+@app.get("/presentation", response_class=HTMLResponse)
+async def presentation():
+    """Serve the RevealJS presentation"""
+    with open("templates/presentation.html", "r") as f:
+        return HTMLResponse(content=f.read())
+
+
 @app.get("/news", response_model=List[NewsOut])
 def get_news(
     asset: Optional[str] = None,
@@ -133,7 +274,7 @@ def delete_all_news(db: Session = Depends(get_db)):
 def delete_news(news_id: int, db: Session = Depends(get_db)):
     news = db.query(NewsItem).filter(NewsItem.id == news_id).first()
     if not news:
-        raise HTTPException(status_code=404, message="News not found")
+        raise HTTPException(status_code=404, detail="News not found")
     db.delete(news)
     db.commit()
     return {"message": "News deleted"}
@@ -142,7 +283,7 @@ def delete_news(news_id: int, db: Session = Depends(get_db)):
 def update_news(news_id: int, news_update: NewsUpdate, db: Session = Depends(get_db)):
     news = db.query(NewsItem).filter(NewsItem.id == news_id).first()
     if not news:
-        raise HTTPException(status_code=404, message="News not found")
+        raise HTTPException(status_code=404, detail="News not found")
 
     if news_update.title is not None:
         news.title = news_update.title
@@ -159,7 +300,7 @@ def update_news(news_id: int, news_update: NewsUpdate, db: Session = Depends(get
 def publish_news(news_id: int, db: Session = Depends(get_db)):
     news = db.query(NewsItem).filter(NewsItem.id == news_id).first()
     if not news:
-        raise HTTPException(status_code=404, message="News not found")
+        raise HTTPException(status_code=404, detail="News not found")
     news.published = True
     db.commit()
     return {"message": "News published"}
@@ -181,6 +322,10 @@ def create_schedule(schedule: ScheduleCreate, db: Session = Depends(get_db)):
     db.add(new_schedule)
     db.commit()
     db.refresh(new_schedule)
+
+    # Add scheduler jobs for this schedule
+    add_schedule_jobs(new_schedule)
+
     return new_schedule
 
 @app.delete("/schedules/{schedule_id}")
@@ -188,6 +333,10 @@ def delete_schedule(schedule_id: int, db: Session = Depends(get_db)):
     schedule = db.query(ScheduleItem).filter(ScheduleItem.id == schedule_id).first()
     if not schedule:
         raise HTTPException(status_code=404, detail="Schedule not found")
+
+    # Remove scheduler jobs
+    remove_schedule_jobs(schedule_id)
+
     db.delete(schedule)
     db.commit()
     return {"message": "Schedule deleted"}
@@ -199,7 +348,26 @@ def toggle_schedule(schedule_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Schedule not found")
     schedule.is_active = not schedule.is_active
     db.commit()
+
+    # Update scheduler jobs
+    if schedule.is_active:
+        add_schedule_jobs(schedule)
+    else:
+        remove_schedule_jobs(schedule_id)
+
     return {"message": "Schedule toggled", "is_active": schedule.is_active}
+
+@app.post("/schedules/{schedule_id}/run")
+async def run_schedule_now(schedule_id: int, db: Session = Depends(get_db)):
+    """Manually trigger a schedule to run immediately"""
+    schedule = db.query(ScheduleItem).filter(ScheduleItem.id == schedule_id).first()
+    if not schedule:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+
+    # Run the generation immediately
+    await generate_scheduled_news(schedule.id, schedule.asset, schedule.language)
+
+    return {"message": f"News generation triggered for {schedule.asset}"}
 
 @app.post("/get-asset-value")
 async def get_asset_value(data: AssetRequest, db: Session = Depends(get_db)):

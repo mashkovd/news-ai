@@ -772,6 +772,11 @@ function renderSchedules(schedules) {
                     </div>
                 </div>
                 <div class="schedule-item-actions">
+                    <button class="schedule-action-btn schedule-run-btn"
+                            onclick="runScheduleNow(${schedule.id})"
+                            title="Run Now">
+                        <i class="fas fa-play-circle"></i>
+                    </button>
                     <button class="schedule-action-btn schedule-toggle-btn ${schedule.is_active ? '' : 'inactive'}"
                             onclick="toggleSchedule(${schedule.id})"
                             title="${schedule.is_active ? 'Active' : 'Paused'}">
@@ -868,6 +873,39 @@ async function deleteSchedule(id) {
         loadSchedules();
     } catch (error) {
         console.error('Error deleting schedule:', error);
+    }
+}
+
+async function runScheduleNow(id) {
+    const btn = event.target.closest('.schedule-run-btn');
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    btn.disabled = true;
+
+    try {
+        const response = await fetch(`/schedules/${id}/run`, { method: 'POST' });
+        const data = await response.json();
+
+        if (response.ok) {
+            // Reload news list to show the new generated news
+            loadNews();
+
+            // Show success feedback
+            btn.innerHTML = '<i class="fas fa-check"></i>';
+            setTimeout(() => {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }, 2000);
+        } else {
+            throw new Error(data.detail || 'Failed to run schedule');
+        }
+    } catch (error) {
+        console.error('Error running schedule:', error);
+        btn.innerHTML = '<i class="fas fa-times"></i>';
+        setTimeout(() => {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }, 2000);
     }
 }
 
