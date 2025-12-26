@@ -25,3 +25,11 @@ env/
 # MkDocs
 site/
 
+# Expo / React Native
+expo/node_modules/
+expo/.expo/
+expo/.expo-shared/
+expo/dist/
+expo/build/
+expo/android/
+expo/ios/
