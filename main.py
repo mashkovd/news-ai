@@ -30,6 +30,18 @@ class NewsItem(Base):
     assets = Column(String) # Stored as JSON string
     language = Column(String)
     published = Column(Boolean, default=False)
+    source = Column(String, default="manual")  # "manual" or "scheduled"
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class ScheduleItem(Base):
+    __tablename__ = "schedules"
+
+    id = Column(Integer, primary_key=True, index=True)
+    asset = Column(String, index=True)
+    language = Column(String)
+    days = Column(String)  # Stored as JSON string, e.g. ["Mon", "Tue", "Wed"]
+    times = Column(String)  # Stored as JSON string, e.g. ["07:00", "09:30"]
+    is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 Base.metadata.create_all(bind=engine)
@@ -66,18 +78,50 @@ class NewsOut(BaseModel):
     assets: str
     language: Optional[str]
     published: bool
+    source: Optional[str] = "manual"
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
+
+class ScheduleCreate(BaseModel):
+    asset: str
+    language: str
+    days: List[str]  # ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    times: List[str]  # ["07:00", "09:30", "12:00"]
+
+class ScheduleOut(BaseModel):
+    id: int
+    asset: str
+    language: str
+    days: str
+    times: str
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 @app.get("/news", response_model=List[NewsOut])
-def get_news(db: Session = Depends(get_db)):
-    return db.query(NewsItem).order_by(NewsItem.created_at.desc()).all()
+def get_news(
+    asset: Optional[str] = None,
+    source: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    query = db.query(NewsItem)
+
+    if asset:
+        # Filter by asset (search in JSON string)
+        query = query.filter(NewsItem.assets.contains(asset.upper()))
+
+    if source:
+        query = query.filter(NewsItem.source == source)
+
+    return query.order_by(NewsItem.created_at.desc()).all()
 
 @app.delete("/news/all")
 def delete_all_news(db: Session = Depends(get_db)):
@@ -120,6 +164,43 @@ def publish_news(news_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "News published"}
 
+# Schedule endpoints
+@app.get("/schedules", response_model=List[ScheduleOut])
+def get_schedules(db: Session = Depends(get_db)):
+    return db.query(ScheduleItem).order_by(ScheduleItem.created_at.desc()).all()
+
+@app.post("/schedules", response_model=ScheduleOut)
+def create_schedule(schedule: ScheduleCreate, db: Session = Depends(get_db)):
+    new_schedule = ScheduleItem(
+        asset=schedule.asset.upper(),
+        language=schedule.language,
+        days=json.dumps(schedule.days),
+        times=json.dumps(schedule.times),
+        is_active=True
+    )
+    db.add(new_schedule)
+    db.commit()
+    db.refresh(new_schedule)
+    return new_schedule
+
+@app.delete("/schedules/{schedule_id}")
+def delete_schedule(schedule_id: int, db: Session = Depends(get_db)):
+    schedule = db.query(ScheduleItem).filter(ScheduleItem.id == schedule_id).first()
+    if not schedule:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+    db.delete(schedule)
+    db.commit()
+    return {"message": "Schedule deleted"}
+
+@app.put("/schedules/{schedule_id}/toggle")
+def toggle_schedule(schedule_id: int, db: Session = Depends(get_db)):
+    schedule = db.query(ScheduleItem).filter(ScheduleItem.id == schedule_id).first()
+    if not schedule:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+    schedule.is_active = not schedule.is_active
+    db.commit()
+    return {"message": "Schedule toggled", "is_active": schedule.is_active}
+
 @app.post("/get-asset-value")
 async def get_asset_value(data: AssetRequest, db: Session = Depends(get_db)):
     async with httpx.AsyncClient() as client:
@@ -154,10 +235,14 @@ async def get_asset_value(data: AssetRequest, db: Session = Depends(get_db)):
                     try:
                         news_json = json.loads(result_str)
 
+                        # Get description and preserve newlines
+                        description = news_json.get("description", "")
+                        # Ensure newlines are preserved (they should be from JSON parsing)
+
                         # Create DB entry
                         new_news = NewsItem(
                             title=news_json.get("title", "No Title"),
-                            description=news_json.get("description", ""),
+                            description=description,
                             assets=json.dumps(news_json.get("assets", [])),
                             language=news_json.get("language", data.language)
                         )
