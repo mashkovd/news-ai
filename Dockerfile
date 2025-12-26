@@ -15,9 +15,16 @@ RUN uv export --frozen --format=requirements-txt > requirements.txt && \
 # Copy application code
 COPY . .
 
+# Build MkDocs documentation
+RUN mkdocs build || true
+
+# Create database directory
+RUN mkdir -p /app/data
+
 # Expose the port the app runs on
 EXPOSE 8000
 
-# Command to run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "8"]
+# Use single worker to avoid APScheduler issues with multiprocessing
+# For production without scheduler, you can use multiple workers
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 
